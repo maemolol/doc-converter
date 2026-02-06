@@ -3,6 +3,7 @@ import React, { useState, useRef } from 'react';
 import './App.css';
 import DocumentUploader from './components/DocumentUploader';
 import RichTextEditor from './components/RichTextEditor';
+import ImprovementModal from './components/ImprovementModal';
 import { extractTextFromFile } from './utils/fileParser';
 import { generateSummary, improveSummary } from './utils/aiService';
 
@@ -18,6 +19,7 @@ function App() {
   const [isImproving, setIsImproving] = useState(false);
   const [error, setError] = useState(null);
   const [processingStage, setProcessingStage] = useState('');
+  const [showImprovementModal, setShowImprovementModal] = useState(false);
 
   /**
    * Handles file upload and initiates the summarization workflow
@@ -61,20 +63,27 @@ function App() {
   };
 
   /**
-   * Handles "Improve with AI" feature
-   * Sends current editor content to AI for enhancement
+   * Opens the improvement modal
    */
-  const handleImproveWithAI = async () => {
+  const handleImproveClick = () => {
     if (!editorContent || editorContent.trim().length === 0) {
       setError('No content to improve. Please upload a document first.');
       return;
     }
+    setShowImprovementModal(true);
+  };
 
+  /**
+   * Handles "Improve with AI" feature with custom instructions
+   * @param {string} instructions - Custom improvement instructions from user
+   */
+  const handleImproveWithAI = async (instructions) => {
+    setShowImprovementModal(false);
     setError(null);
     setIsImproving(true);
 
     try {
-      const improvedContent = await improveSummary(editorContent);
+      const improvedContent = await improveSummary(editorContent, instructions);
       
       if (!improvedContent || improvedContent.trim().length === 0) {
         throw new Error('Failed to improve content. Please try again.');
@@ -131,7 +140,7 @@ function App() {
               <h2>Summary</h2>
               <button
                 className="improve-button"
-                onClick={handleImproveWithAI}
+                onClick={handleImproveClick}
                 disabled={isAnyProcessing}
                 aria-label="Improve summary with AI"
               >
@@ -157,6 +166,14 @@ function App() {
           </section>
         )}
       </main>
+
+      {/* Improvement Modal */}
+      {showImprovementModal && (
+        <ImprovementModal
+          onImprove={handleImproveWithAI}
+          onCancel={() => setShowImprovementModal(false)}
+        />
+      )}
     </div>
   );
 }

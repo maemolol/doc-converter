@@ -1,4 +1,3 @@
-// utils/fileParser.js
 import mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist';
 

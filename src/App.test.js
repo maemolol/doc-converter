@@ -26,8 +26,10 @@ describe('App Component', () => {
   test('does not show editor before file upload', () => {
     render(<App />);
     
-    expect(screen.queryByText(/Summary/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Improve with AI/i)).not.toBeInTheDocument();
+    // Check that the editor section is not present
+    expect(screen.queryByRole('button', { name: /Improve summary with AI/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: /Document summary editor/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('toolbar', { name: /Text formatting/i })).not.toBeInTheDocument();
   });
 
   test('successfully processes file upload and generates summary', async () => {
@@ -60,8 +62,8 @@ describe('App Component', () => {
 
     // Verify editor is displayed with summary
     await waitFor(() => {
-      expect(screen.getByText(/Summary/i)).toBeInTheDocument();
-      expect(screen.getByText(/Improve with AI/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Improve summary with AI/i })).toBeInTheDocument();
+      expect(screen.getByRole('textbox', { name: /Document summary editor/i })).toBeInTheDocument();
     });
   });
 
@@ -153,10 +155,10 @@ describe('App Component', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText(/Improve with AI/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Improve summary with AI/i })).toBeInTheDocument();
     });
 
-    const improveButton = screen.getByRole('button', { name: /Improve with AI/i });
+    const improveButton = screen.getByRole('button', { name: /Improve summary with AI/i });
     fireEvent.click(improveButton);
 
     await waitFor(() => {
@@ -186,10 +188,10 @@ describe('App Component', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText(/Improve with AI/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Improve summary with AI/i })).toBeInTheDocument();
     });
 
-    const improveButton = screen.getByRole('button', { name: /Improve with AI/i });
+    const improveButton = screen.getByRole('button', { name: /Improve summary with AI/i });
     fireEvent.click(improveButton);
 
     // Button should be disabled during processing
@@ -219,10 +221,10 @@ describe('App Component', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText(/Improve with AI/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Improve summary with AI/i })).toBeInTheDocument();
     });
 
-    const improveButton = screen.getByRole('button', { name: /Improve with AI/i });
+    const improveButton = screen.getByRole('button', { name: /Improve summary with AI/i });
     fireEvent.click(improveButton);
 
     await waitFor(() => {
@@ -256,10 +258,10 @@ describe('App Component', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText(/Improve with AI/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Improve summary with AI/i })).toBeInTheDocument();
     });
 
-    const improveButton = screen.getByRole('button', { name: /Improve with AI/i });
+    const improveButton = screen.getByRole('button', { name: /Improve summary with AI/i });
     
     // Click improve button
     fireEvent.click(improveButton);
