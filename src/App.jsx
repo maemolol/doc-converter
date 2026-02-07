@@ -1,4 +1,4 @@
-// App.jsx
+// App.jsx - Add OCR progress tracking
 import React, { useState, useRef } from 'react';
 import './App.css';
 import DocumentUploader from './components/DocumentUploader';
@@ -7,10 +7,6 @@ import ImprovementModal from './components/ImprovementModal';
 import { extractTextFromFile } from './utils/fileParser';
 import { generateSummary, improveSummary } from './utils/aiService';
 
-/**
- * Main application component for document summarization workflow
- * Manages state for file upload, text extraction, AI summarization, and editor content
- */
 function App() {
   const [uploadedFile, setUploadedFile] = useState(null);
   const [extractedText, setExtractedText] = useState('');
@@ -20,6 +16,7 @@ function App() {
   const [error, setError] = useState(null);
   const [processingStage, setProcessingStage] = useState('');
   const [showImprovementModal, setShowImprovementModal] = useState(false);
+  const [ocrProgress, setOcrProgress] = useState(0);
 
   /**
    * Handles file upload and initiates the summarization workflow
@@ -32,17 +29,27 @@ function App() {
     setUploadedFile(file);
     setExtractedText('');
     setEditorContent('');
+    setOcrProgress(0);
 
     try {
       // Extract text from the uploaded file
       setProcessingStage('extracting');
-      const text = await extractTextFromFile(file);
+      
+      // Progress callback for OCR
+      const handleOcrProgress = (progressData) => {
+        if (progressData.progress) {
+          setOcrProgress(Math.round(progressData.progress * 100));
+        }
+      };
+      
+      const text = await extractTextFromFile(file, handleOcrProgress);
       
       if (!text || text.trim().length === 0) {
         throw new Error('No text could be extracted from the file. Please ensure the file contains readable text.');
       }
 
       setExtractedText(text);
+      setOcrProgress(0);
 
       // Generate AI summary from extracted text
       setProcessingStage('summarizing');
@@ -57,14 +64,12 @@ function App() {
     } catch (err) {
       setError(err.message);
       setProcessingStage('');
+      setOcrProgress(0);
     } finally {
       setIsProcessing(false);
     }
   };
 
-  /**
-   * Opens the improvement modal
-   */
   const handleImproveClick = () => {
     if (!editorContent || editorContent.trim().length === 0) {
       setError('No content to improve. Please upload a document first.');
@@ -73,10 +78,6 @@ function App() {
     setShowImprovementModal(true);
   };
 
-  /**
-   * Handles "Improve with AI" feature with custom instructions
-   * @param {string} instructions - Custom improvement instructions from user
-   */
   const handleImproveWithAI = async (instructions) => {
     setShowImprovementModal(false);
     setError(null);
@@ -91,17 +92,12 @@ function App() {
 
       setEditorContent(improvedContent);
     } catch (err) {
-      // Don't overwrite content on failure
       setError(err.message);
     } finally {
       setIsImproving(false);
     }
   };
 
-  /**
-   * Updates editor content when user makes manual edits
-   * @param {string} content - Updated HTML content from editor
-   */
   const handleEditorChange = (content) => {
     setEditorContent(content);
   };
@@ -116,24 +112,22 @@ function App() {
       </header>
 
       <main className="app-main">
-        {/* File Upload Section */}
         <section className="upload-section">
           <DocumentUploader
             onFileUpload={handleFileUpload}
             disabled={isAnyProcessing}
             isProcessing={isProcessing}
             processingStage={processingStage}
+            ocrProgress={ocrProgress}
           />
         </section>
 
-        {/* Error Display */}
         {error && (
           <div className="error-message" role="alert">
             <strong>Error:</strong> {error}
           </div>
         )}
 
-        {/* Editor Section - Only show after successful summarization */}
         {editorContent && (
           <section className="editor-section">
             <div className="editor-header">
@@ -167,7 +161,6 @@ function App() {
         )}
       </main>
 
-      {/* Improvement Modal */}
       {showImprovementModal && (
         <ImprovementModal
           onImprove={handleImproveWithAI}

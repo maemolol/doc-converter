@@ -1,4 +1,4 @@
-/* components/DocumentUploader.css */
+/* components/DocumentUploader.css - Add OCR progress styles */
 .document-uploader {
   width: 100%;
 }
@@ -57,6 +57,13 @@
   margin-top: 1rem;
 }
 
+.ocr-note {
+  font-size: 0.85rem;
+  color: #667eea;
+  margin-top: 0.5rem;
+  font-weight: 500;
+}
+
 .processing-state {
   display: flex;
   flex-direction: column;
@@ -69,6 +76,23 @@
   color: #667eea;
   font-weight: 600;
   margin: 0;
+}
+
+.ocr-progress-bar {
+  width: 100%;
+  max-width: 300px;
+  height: 8px;
+  background: #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 0.5rem;
+}
+
+.ocr-progress-fill {
+  height: 100%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  transition: width 0.3s ease;
+  border-radius: 4px;
 }
 
 .validation-error {

@@ -1,8 +1,7 @@
-// components/DocumentUploader.jsx
+// components/DocumentUploader.jsx - Add OCR progress display
 import React, { useRef, useState } from 'react';
 import './DocumentUploader.css';
 
-// Supported file types and validation
 const SUPPORTED_FILE_TYPES = {
   'application/pdf': '.pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
@@ -12,24 +11,14 @@ const SUPPORTED_FILE_TYPES = {
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
-/**
- * Document uploader component with drag-and-drop support
- * Validates file type and size before processing
- */
-function DocumentUploader({ onFileUpload, disabled, isProcessing, processingStage }) {
+function DocumentUploader({ onFileUpload, disabled, isProcessing, processingStage, ocrProgress }) {
   const [isDragging, setIsDragging] = useState(false);
   const [validationError, setValidationError] = useState(null);
   const fileInputRef = useRef(null);
 
-  /**
-   * Validates uploaded file against type and size constraints
-   * @param {File} file - File to validate
-   * @returns {boolean} - True if valid, false otherwise
-   */
   const validateFile = (file) => {
     setValidationError(null);
 
-    // Check file type
     if (!Object.keys(SUPPORTED_FILE_TYPES).includes(file.type)) {
       setValidationError(
         `Unsupported file type. Please upload a PDF, DOCX, PNG, or JPEG file.`
@@ -37,7 +26,6 @@ function DocumentUploader({ onFileUpload, disabled, isProcessing, processingStag
       return false;
     }
 
-    // Check file size
     if (file.size > MAX_FILE_SIZE) {
       setValidationError(
         `File size exceeds 10MB limit. Please upload a smaller file.`
@@ -48,20 +36,12 @@ function DocumentUploader({ onFileUpload, disabled, isProcessing, processingStag
     return true;
   };
 
-  /**
-   * Handles file selection from input or drag-and-drop
-   * @param {File} file - Selected file
-   */
   const handleFile = (file) => {
     if (validateFile(file)) {
       onFileUpload(file);
     }
   };
 
-  /**
-   * Handles file input change event
-   * @param {Event} event - Change event
-   */
   const handleFileInputChange = (event) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -69,10 +49,6 @@ function DocumentUploader({ onFileUpload, disabled, isProcessing, processingStag
     }
   };
 
-  /**
-   * Handles drag enter event
-   * @param {DragEvent} event - Drag event
-   */
   const handleDragEnter = (event) => {
     event.preventDefault();
     event.stopPropagation();
@@ -81,29 +57,17 @@ function DocumentUploader({ onFileUpload, disabled, isProcessing, processingStag
     }
   };
 
-  /**
-   * Handles drag leave event
-   * @param {DragEvent} event - Drag event
-   */
   const handleDragLeave = (event) => {
     event.preventDefault();
     event.stopPropagation();
     setIsDragging(false);
   };
 
-  /**
-   * Handles drag over event
-   * @param {DragEvent} event - Drag event
-   */
   const handleDragOver = (event) => {
     event.preventDefault();
     event.stopPropagation();
   };
 
-  /**
-   * Handles file drop event
-   * @param {DragEvent} event - Drop event
-   */
   const handleDrop = (event) => {
     event.preventDefault();
     event.stopPropagation();
@@ -117,25 +81,20 @@ function DocumentUploader({ onFileUpload, disabled, isProcessing, processingStag
     }
   };
 
-  /**
-   * Opens file selection dialog
-   */
   const handleClick = () => {
     if (!disabled && fileInputRef.current) {
       fileInputRef.current.click();
     }
   };
 
-  /**
-   * Gets processing stage display text
-   * @returns {string} - Display text for current processing stage
-   */
   const getProcessingText = () => {
     switch (processingStage) {
       case 'uploading':
         return 'Uploading file...';
       case 'extracting':
-        return 'Extracting text...';
+        return ocrProgress > 0 
+          ? `Recognizing text... ${ocrProgress}%` 
+          : 'Extracting text...';
       case 'summarizing':
         return 'Generating AI summary...';
       default:
@@ -170,6 +129,14 @@ function DocumentUploader({ onFileUpload, disabled, isProcessing, processingStag
           <div className="processing-state">
             <div className="spinner-large"></div>
             <p className="processing-text">{getProcessingText()}</p>
+            {ocrProgress > 0 && (
+              <div className="ocr-progress-bar">
+                <div 
+                  className="ocr-progress-fill" 
+                  style={{ width: `${ocrProgress}%` }}
+                />
+              </div>
+            )}
           </div>
         ) : (
           <>
@@ -178,6 +145,9 @@ function DocumentUploader({ onFileUpload, disabled, isProcessing, processingStag
             <p>or click to browse</p>
             <p className="supported-formats">
               Supported formats: PDF, DOCX, PNG, JPEG (max 10MB)
+            </p>
+            <p className="ocr-note">
+              📸 Images will be processed with OCR to extract text
             </p>
           </>
         )}

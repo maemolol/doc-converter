@@ -1,5 +1,7 @@
+// utils/fileParser.js
 import mammoth from 'mammoth';
 import * as pdfjsLib from 'pdfjs-dist';
+import { createWorker } from 'tesseract.js';
 
 // Configure PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
@@ -7,9 +9,10 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.j
 /**
  * Extracts text content from uploaded file based on file type
  * @param {File} file - The uploaded file
+ * @param {Function} onProgress - Optional progress callback for OCR
  * @returns {Promise<string>} - Extracted text content
  */
-export async function extractTextFromFile(file) {
+export async function extractTextFromFile(file, onProgress = null) {
   const fileType = file.type;
 
   try {
@@ -18,7 +21,7 @@ export async function extractTextFromFile(file) {
     } else if (fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
       return await extractTextFromDOCX(file);
     } else if (fileType.startsWith('image/')) {
-      return await extractTextFromImage(file);
+      return await extractTextFromImage(file, onProgress);
     } else {
       throw new Error('Unsupported file type');
     }
@@ -62,51 +65,135 @@ async function extractTextFromDOCX(file) {
 }
 
 /**
- * Extracts text from image using OCR
- * NOTE: This is a placeholder for real OCR integration
- * In production, integrate with services like:
- * - Google Cloud Vision API
- * - AWS Textract
- * - Azure Computer Vision
- * - Tesseract.js (client-side OCR)
+ * Extracts text from image using Tesseract.js OCR
+ * Supports multiple languages and provides progress updates
  * 
  * @param {File} file - Image file
+ * @param {Function} onProgress - Optional callback for progress updates
  * @returns {Promise<string>} - Extracted text via OCR
  */
-async function extractTextFromImage(file) {
-  // PLACEHOLDER: Real OCR integration needed here
-  // Example with Tesseract.js:
-  // import Tesseract from 'tesseract.js';
-  // const { data: { text } } = await Tesseract.recognize(file, 'eng');
-  // return text;
+async function extractTextFromImage(file, onProgress = null) {
+  let worker = null;
   
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
+  try {
+    console.log('🔍 Starting OCR on image:', file.name);
     
-    reader.onload = async (e) => {
-      try {
-        // TODO: Replace with actual OCR service call
-        // Mock implementation for testing purposes
-        const mockOCRText = `This is extracted text from the image: ${file.name}
+    // Create Tesseract worker with proper configuration for React
+    worker = await createWorker('eng', 1, {
+      logger: (m) => {
+        console.log('OCR Progress:', m);
         
-The image appears to contain a document with multiple paragraphs of text.
-This is a placeholder response that simulates OCR text extraction.
+        // Call progress callback if provided
+        if (onProgress) {
+          if (m.status === 'recognizing text') {
+            onProgress({
+              status: m.status,
+              progress: m.progress // 0 to 1
+            });
+          } else if (m.status === 'loading tesseract core' || 
+                     m.status === 'initializing tesseract' ||
+                     m.status === 'loading language traineddata') {
+            onProgress({
+              status: m.status,
+              progress: m.progress || 0
+            });
+          }
+        }
+      },
+      // Use CDN for worker files to avoid bundling issues
+      workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5.0.4/dist/worker.min.js',
+      langPath: 'https://tessdata.projectnaptha.com/4.0.0',
+      corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.0.0/tesseract-core-simd.wasm.js',
+    });
 
-In a production environment, this would be replaced with actual OCR processing
-using a service like Google Cloud Vision, AWS Textract, or Tesseract.js.`;
-        
-        // Simulate OCR processing delay
-        await new Promise(res => setTimeout(res, 1500));
-        resolve(mockOCRText);
-      } catch (error) {
-        reject(new Error('OCR processing failed'));
+    console.log('✅ Worker created and initialized');
+
+    // Perform OCR
+    const { data: { text, confidence } } = await worker.recognize(file);
+    
+    console.log(`✅ OCR completed with ${(confidence).toFixed(1)}% confidence`);
+
+    // Validate OCR results
+    if (!text || text.trim().length === 0) {
+      throw new Error('No text could be recognized in the image. The image may be too blurry, low quality, or may not contain any text.');
+    }
+
+    // Warn if confidence is low
+    if (confidence < 60) {
+      console.warn(`⚠️ Low OCR confidence (${confidence.toFixed(1)}%). Results may be inaccurate.`);
+    }
+
+    return text.trim();
+  } catch (error) {
+    console.error('OCR Error:', error);
+    
+    if (error.message && error.message.includes('recognize')) {
+      throw new Error('Failed to recognize text in image. Please ensure the image contains clear, readable text.');
+    }
+    
+    throw new Error(`OCR processing failed: ${error.message}`);
+  } finally {
+    // Always terminate worker to free up resources
+    if (worker) {
+      try {
+        await worker.terminate();
+        console.log('🧹 Worker terminated');
+      } catch (e) {
+        console.warn('Failed to terminate worker:', e);
       }
-    };
+    }
+  }
+}
+
+/**
+ * Advanced OCR with multi-language support
+ * @param {File} file - Image file
+ * @param {Array<string>} languages - Array of language codes (e.g., ['eng', 'fra', 'deu'])
+ * @param {Function} onProgress - Progress callback
+ * @returns {Promise<string>} - Extracted text
+ */
+export async function extractTextFromImageMultiLang(file, languages = ['eng'], onProgress = null) {
+  let worker = null;
+  
+  try {
+    console.log(`🔍 Starting OCR with languages: ${languages.join(', ')}`);
     
-    reader.onerror = () => {
-      reject(new Error('Failed to read image file'));
-    };
+    const langString = languages.join('+');
     
-    reader.readAsDataURL(file);
-  });
+    worker = await createWorker(langString, 1, {
+      logger: (m) => {
+        console.log('OCR Progress:', m);
+        if (onProgress) {
+          onProgress({
+            status: m.status,
+            progress: m.progress || 0
+          });
+        }
+      },
+      workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5.0.4/dist/worker.min.js',
+      langPath: 'https://tessdata.projectnaptha.com/4.0.0',
+      corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.0.0/tesseract-core-simd.wasm.js',
+    });
+
+    const { data: { text, confidence } } = await worker.recognize(file);
+    
+    console.log(`✅ Multi-language OCR completed with ${(confidence).toFixed(1)}% confidence`);
+
+    if (!text || text.trim().length === 0) {
+      throw new Error('No text could be recognized in the image.');
+    }
+
+    return text.trim();
+  } catch (error) {
+    console.error('Multi-language OCR Error:', error);
+    throw new Error(`OCR processing failed: ${error.message}`);
+  } finally {
+    if (worker) {
+      try {
+        await worker.terminate();
+      } catch (e) {
+        console.warn('Failed to terminate worker:', e);
+      }
+    }
+  }
 }

@@ -7,7 +7,7 @@
     "react-dom": "^18.2.0",
     "mammoth": "^1.6.0",
     "pdfjs-dist": "^3.11.174",
-    "openai": "^4.20.1"
+    "tesseract.js": "^5.0.4"
   },
   "devDependencies": {
     "@testing-library/react": "^14.0.0",
